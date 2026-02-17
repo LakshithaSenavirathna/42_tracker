@@ -22,6 +22,169 @@
 /* ── RESET ── */
 *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
 
+/* ── LOCK SCREEN ── */
+.lock-screen {
+  position: fixed;
+  inset: 0;
+  background: var(--bg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 999;
+  transition: opacity .4s ease, visibility .4s ease;
+}
+.lock-screen.hidden {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.lock-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0;
+  width: 320px;
+  max-width: 92vw;
+}
+
+.lock-icon {
+  font-size: 36px;
+  margin-bottom: 16px;
+  animation: pulse 2s ease-in-out infinite;
+}
+@keyframes pulse {
+  0%, 100% { transform: scale(1);    opacity: 1; }
+  50%       { transform: scale(1.1); opacity: 0.7; }
+}
+
+.lock-title {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 38px;
+  letter-spacing: 3px;
+  background: linear-gradient(140deg, #fff 0%, #8888aa 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  margin-bottom: 6px;
+}
+.lock-sub {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  color: var(--muted);
+  letter-spacing: 2px;
+  margin-bottom: 28px;
+}
+
+/* PIN dots */
+.pin-dots {
+  display: flex;
+  gap: 14px;
+  margin-bottom: 12px;
+}
+.pin-dot {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 2px solid var(--border2);
+  background: transparent;
+  transition: background .15s, border-color .15s, transform .15s;
+}
+.pin-dot.filled {
+  background: var(--accent);
+  border-color: var(--accent);
+  transform: scale(1.15);
+}
+.pin-dot.error {
+  background: var(--accent2);
+  border-color: var(--accent2);
+}
+
+/* Error message */
+.pin-error {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  color: var(--accent2);
+  letter-spacing: 1px;
+  height: 18px;
+  margin-bottom: 20px;
+  text-align: center;
+}
+
+/* Numpad */
+.numpad {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  width: 100%;
+}
+.num-btn {
+  background: var(--card);
+  border: 1px solid var(--border);
+  color: var(--text);
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 24px;
+  letter-spacing: 1px;
+  padding: 18px 0;
+  cursor: pointer;
+  transition: background .12s, border-color .12s, transform .1s;
+  user-select: none;
+}
+.num-btn:hover  { background: var(--card2); border-color: var(--border2); }
+.num-btn:active { transform: scale(0.94); background: var(--surface); }
+
+.num-clear {
+  font-size: 18px;
+  color: var(--accent2);
+  border-color: rgba(255,107,53,0.2);
+}
+.num-clear:hover { border-color: var(--accent2); }
+
+.num-enter {
+  font-size: 20px;
+  color: var(--accent);
+  border-color: rgba(0,255,136,0.2);
+}
+.num-enter:hover { border-color: var(--accent); background: rgba(0,255,136,0.05); }
+
+/* shake animation on wrong PIN */
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  20%       { transform: translateX(-8px); }
+  40%       { transform: translateX( 8px); }
+  60%       { transform: translateX(-5px); }
+  80%       { transform: translateX( 5px); }
+}
+.lock-box.shake { animation: shake .4s ease; }
+
+/* ── MAIN APP ── */
+.main-app { transition: opacity .4s ease; }
+.main-app.locked { opacity: 0; pointer-events: none; }
+.main-app.unlocked { opacity: 1; pointer-events: all; }
+
+/* ── HEADER BOTTOM ROW (sync + lock btn) ── */
+.header-bottom-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 14px;
+  flex-wrap: wrap;
+}
+
+/* ── LOCK BUTTON ── */
+.lock-btn {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--muted);
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  letter-spacing: 1px;
+  padding: 6px 14px;
+  cursor: pointer;
+  transition: border-color .15s, color .15s;
+}
+.lock-btn:hover { border-color: var(--accent2); color: var(--accent2); }
+
 /* ── BODY ── */
 body {
   background: var(--bg);
