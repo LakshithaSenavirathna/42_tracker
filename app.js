@@ -245,19 +245,6 @@ function fmtDate(d) {
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 }
 
-/** Today + next 2 days are editable (3-day window) */
-function isEditable(dayIdx) {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-
-  const day2 = new Date(today); day2.setDate(today.getDate() + 2); // today + 2
-
-  const cellDate = getDate(dayIdx);
-  cellDate.setHours(0, 0, 0, 0);
-
-  return cellDate >= today && cellDate <= day2;
-}
-
 // ── TOAST NOTIFICATION ────────────────────────────
 function showToast(msg) {
   let toast = document.getElementById('toast');
@@ -313,17 +300,12 @@ function buildGrid() {
     const isFull    = pct === 1;
     const isPartial = pct > 0 && pct < 1;
     const isToday   = d.getTime() === today.getTime();
-    const editable  = isEditable(i);
-    const isFutureLocked = d > today && !editable;
 
     const cell = document.createElement('div');
     cell.className = ['day-cell',
-      isFull          ? 'full-day'      : '',
-      isPartial       ? 'partial-day'   : '',
-      isToday         ? 'today'         : '',
-      editable        ? 'day-editable'  : '',
-      isFutureLocked  ? 'day-future'    : '',
-      !editable && d < today ? 'day-past' : '',
+      isFull    ? 'full-day'    : '',
+      isPartial ? 'partial-day' : '',
+      isToday   ? 'today'       : '',
     ].join(' ').trim();
 
     // Yellow dot if note exists
@@ -374,20 +356,6 @@ function updateGridProgress() {
 
 // ── MODAL ─────────────────────────────────────────
 function openModal(dayIdx) {
-  // ── EDIT RESTRICTION: only today & tomorrow ──
-  if (!isEditable(dayIdx)) {
-    const cellDate = getDate(dayIdx);
-    cellDate.setHours(0, 0, 0, 0);
-    const today = new Date(); today.setHours(0, 0, 0, 0);
-    const isPast = cellDate < today;
-    showToast(
-      isPast
-        ? `🔒 Day ${dayIdx + 1} is locked — past days can't be edited`
-        : `🔒 Day ${dayIdx + 1} not available yet — opens on ${fmtDate(cellDate)}`
-    );
-    return;
-  }
-
   openDayIdx = dayIdx;
   const d = getDate(dayIdx);
   document.getElementById('modalTitle').textContent =
