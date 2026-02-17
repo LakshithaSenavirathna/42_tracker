@@ -3,6 +3,99 @@
    Storage: Google Sheets via Apps Script
    ═══════════════════════════════════════════════ */
 
+// ── PIN LOCK ─────────────────────────────────────
+const CORRECT_PIN = '1122';
+const SESSION_KEY = 'tracker42_unlocked';
+let pinBuffer = '';
+
+function setupLock() {
+  // Already unlocked this browser session — skip lock screen
+  if (sessionStorage.getItem(SESSION_KEY) === 'yes') {
+    unlock(false);
+    return;
+  }
+
+  // Digit buttons
+  document.querySelectorAll('.num-btn[data-n]').forEach(btn => {
+    btn.addEventListener('click', () => pressDigit(btn.dataset.n));
+  });
+  document.getElementById('clearPin').addEventListener('click', backspacePin);
+  document.getElementById('enterPin').addEventListener('click', submitPin);
+
+  // Keyboard support
+  document.addEventListener('keydown', e => {
+    if (document.getElementById('lockScreen').classList.contains('hidden')) return;
+    if (e.key >= '0' && e.key <= '9') pressDigit(e.key);
+    else if (e.key === 'Backspace') backspacePin();
+    else if (e.key === 'Enter')     submitPin();
+  });
+
+  // Lock button inside the app
+  document.getElementById('lockBtn').addEventListener('click', lockApp);
+}
+
+function pressDigit(d) {
+  if (pinBuffer.length >= 4) return;
+  pinBuffer += d;
+  updateDots();
+  if (pinBuffer.length === 4) setTimeout(submitPin, 120);
+}
+
+function backspacePin() {
+  pinBuffer = pinBuffer.slice(0, -1);
+  updateDots();
+  clearPinError();
+}
+
+function updateDots() {
+  for (let i = 0; i < 4; i++) {
+    const dot = document.getElementById('dot' + i);
+    dot.classList.toggle('filled', i < pinBuffer.length);
+    dot.classList.remove('error');
+  }
+}
+
+function submitPin() {
+  if (pinBuffer === CORRECT_PIN) {
+    sessionStorage.setItem(SESSION_KEY, 'yes');
+    unlock(true);
+  } else {
+    // Shake animation + red dots
+    const box = document.querySelector('.lock-box');
+    box.classList.remove('shake');
+    void box.offsetWidth; // restart animation
+    box.classList.add('shake');
+    for (let i = 0; i < 4; i++) {
+      document.getElementById('dot' + i).classList.add('error');
+    }
+    document.getElementById('pinError').textContent = 'Incorrect PIN — try again';
+    setTimeout(() => { pinBuffer = ''; updateDots(); clearPinError(); }, 900);
+  }
+}
+
+function clearPinError() {
+  document.getElementById('pinError').textContent = '';
+}
+
+function unlock(animate) {
+  document.getElementById('lockScreen').classList.add('hidden');
+  const app = document.getElementById('mainApp');
+  app.classList.remove('locked');
+  app.classList.add('unlocked');
+  if (animate) bootTracker();
+}
+
+function lockApp() {
+  sessionStorage.removeItem(SESSION_KEY);
+  pinBuffer = '';
+  updateDots();
+  clearPinError();
+  document.getElementById('lockScreen').classList.remove('hidden');
+  const app = document.getElementById('mainApp');
+  app.classList.add('locked');
+  app.classList.remove('unlocked');
+}
+
 // ── GOOGLE SHEETS CONFIG ─────────────────────────
 const SHEET_URL = 'https://script.google.com/macros/s/AKfycby6Hk_tHEifuaYcA_-dcybjCisMBKi_0bg3rritM__02UGvkKtloIjk6cDrsR16J8F4nA/exec';
 
@@ -407,8 +500,8 @@ function attachEvents() {
   document.getElementById('clearDayBtn').addEventListener('click', handleClearDay);
 }
 
-// ── INIT ─────────────────────────────────────────
-async function init() {
+// ── BOOT TRACKER (called after unlock) ───────────
+async function bootTracker() {
   attachEvents();
   buildLegend();
 
@@ -419,6 +512,18 @@ async function init() {
   // 2. Fetch latest from Google Sheets and re-render
   await loadFromSheets();
   refreshAll();
+}
+
+// ── INIT — entry point ────────────────────────────
+function init() {
+  setupLock();
+  // If session was already unlocked, bootTracker() is
+  // called inside setupLock → unlock(false). Otherwise
+  // it's called after correct PIN entry via unlock(true).
+  // Edge case: if unlocked=yes, we still need to boot.
+  if (sessionStorage.getItem(SESSION_KEY) === 'yes') {
+    bootTracker();
+  }
 }
 
 window.addEventListener('load', init);
