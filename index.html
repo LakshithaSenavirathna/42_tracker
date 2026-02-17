@@ -9,124 +9,173 @@
 </head>
 <body>
 
-  <div class="container">
+  <!-- ══════════════════════════════════════════
+       LOCK SCREEN — shown until password entered
+       ══════════════════════════════════════════ -->
+  <div id="lockScreen" class="lock-screen">
+    <div class="lock-box">
 
-    <!-- ── HEADER ── -->
-    <div class="header">
-      <div class="tag">Operation Mastery</div>
-      <h1>42 DAY<br>TRACKER</h1>
-      <div class="header-meta">
-        Feb 17 → Mar 31, 2026 &nbsp;·&nbsp;
-        <span>Tap a day → tick your tasks</span>
-      </div>
-      <div id="syncStatus" class="sync-status sync-idle">☁️ Connecting to Google Sheets…</div>
-    </div>
+      <div class="lock-icon">🔒</div>
+      <div class="lock-title">42-DAY TRACKER</div>
+      <div class="lock-sub">Enter your PIN to continue</div>
 
-    <!-- ── LEGEND ── -->
-    <div class="slabel">🎯 Daily Tasks — tap dots inside each day cell</div>
-    <div class="legend" id="legend"></div>
-
-    <!-- ── 42-DAY CALENDAR GRID ── -->
-    <div class="slabel">📅 42-Day Calendar — click any day to log tasks</div>
-    <div class="grid-wrap">
-      <div class="grid-header">
-        <div class="grid-title">FULL SPRINT CALENDAR</div>
-        <div class="grid-progress-text" id="gridProgressText">0 / 42 days complete</div>
-      </div>
-      <div class="day-grid" id="dayGrid"></div>
-    </div>
-
-    <!-- ── SUMMARY STATS ── -->
-    <div class="slabel">📊 Live Summary</div>
-    <div class="stats-grid">
-      <div class="stat-card">
-        <div class="stat-val" id="s-pushups" style="color:var(--accent)">0</div>
-        <div class="stat-lbl">Pushups Done</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-val" id="s-journal" style="color:var(--accent2)">0</div>
-        <div class="stat-lbl">Journal Entries</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-val" id="s-linkedin" style="color:var(--accent3)">0</div>
-        <div class="stat-lbl">LinkedIn Posts</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-val" id="s-streak" style="color:var(--accent4)">0</div>
-        <div class="stat-lbl">Current Streak</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-val" id="s-pct" style="color:var(--accent5)">0%</div>
-        <div class="stat-lbl">Plan Complete</div>
-      </div>
-    </div>
-
-    <!-- ── CHARTS ── -->
-    <div class="slabel">📈 Progress Charts</div>
-    <div class="charts-row">
-      <div class="chart-card">
-        <div class="chart-card-header">📅 Tasks Completed Per Day</div>
-        <div class="chart-body">
-          <canvas id="barChart" height="180"></canvas>
-        </div>
-      </div>
-      <div class="chart-card">
-        <div class="chart-card-header">🍩 Task Type Breakdown</div>
-        <div class="chart-body donut-wrap">
-          <canvas id="donutChart" height="220" width="220"></canvas>
-        </div>
-      </div>
-    </div>
-
-    <!-- ── HEATMAP ── -->
-    <div class="heatmap-wrap">
-      <div class="grid-header">
-        <div class="grid-title">🔥 Habit Completion Heatmap</div>
-        <div class="grid-progress-text">Darker = more tasks done that day</div>
-      </div>
-      <div class="heatmap-body" id="heatmapBody"></div>
-    </div>
-
-    <!-- ── STREAK BARS ── -->
-    <div class="streak-section">
-      <div class="grid-header">
-        <div class="grid-title">⚡ Daily Completion Score</div>
-        <div class="grid-progress-text" id="streakLabel">streak bars per day</div>
-      </div>
-      <div class="streak-body">
-        <div class="streak-bars" id="streakBars"></div>
-        <div class="streak-labels" id="streakLabels"></div>
-      </div>
-    </div>
-
-    <!-- ── FOOTER ── -->
-    <div class="footer">
-      <div class="footer-motto">BUILD THE BEAST.</div>
-      <div class="footer-sub">Feb 17 → Mar 31 · 42 days · thesis + ML + english + body</div>
-    </div>
-
-  </div><!-- /.container -->
-
-  <!-- ── TASK MODAL ── -->
-  <div class="task-modal" id="taskModal">
-    <div class="task-panel">
-
-      <div class="task-panel-header">
-        <div class="task-panel-title" id="modalTitle">Day 1</div>
-        <button class="close-btn" id="closeModalBtn">✕</button>
+      <!-- PIN dots display -->
+      <div class="pin-dots" id="pinDots">
+        <span class="pin-dot" id="dot0"></span>
+        <span class="pin-dot" id="dot1"></span>
+        <span class="pin-dot" id="dot2"></span>
+        <span class="pin-dot" id="dot3"></span>
       </div>
 
-      <div class="task-list" id="taskList"></div>
+      <!-- Error message -->
+      <div class="pin-error" id="pinError"></div>
 
-      <!-- Clear Day button -->
-      <div class="modal-footer">
-        <button class="clear-day-btn" id="clearDayBtn">
-          🗑 Clear All Tasks for This Day
-        </button>
+      <!-- Number pad -->
+      <div class="numpad">
+        <button class="num-btn" data-n="1">1</button>
+        <button class="num-btn" data-n="2">2</button>
+        <button class="num-btn" data-n="3">3</button>
+        <button class="num-btn" data-n="4">4</button>
+        <button class="num-btn" data-n="5">5</button>
+        <button class="num-btn" data-n="6">6</button>
+        <button class="num-btn" data-n="7">7</button>
+        <button class="num-btn" data-n="8">8</button>
+        <button class="num-btn" data-n="9">9</button>
+        <button class="num-btn num-clear" id="clearPin">⌫</button>
+        <button class="num-btn" data-n="0">0</button>
+        <button class="num-btn num-enter" id="enterPin">↵</button>
       </div>
 
     </div>
   </div>
+
+  <!-- ══════════════════════════════════════════
+       MAIN APP — hidden until unlocked
+       ══════════════════════════════════════════ -->
+  <div id="mainApp" class="main-app locked">
+
+    <div class="container">
+
+      <!-- ── HEADER ── -->
+      <div class="header">
+        <div class="tag">Operation Mastery</div>
+        <h1>42 DAY<br>TRACKER</h1>
+        <div class="header-meta">
+          Feb 17 → Mar 31, 2026 &nbsp;·&nbsp;
+          <span>Tap a day → tick your tasks</span>
+        </div>
+        <div class="header-bottom-row">
+          <div id="syncStatus" class="sync-status sync-idle">☁️ Connecting to Google Sheets…</div>
+          <button class="lock-btn" id="lockBtn" title="Lock tracker">🔒 Lock</button>
+        </div>
+      </div>
+
+      <!-- ── LEGEND ── -->
+      <div class="slabel">🎯 Daily Tasks — tap dots inside each day cell</div>
+      <div class="legend" id="legend"></div>
+
+      <!-- ── 42-DAY CALENDAR GRID ── -->
+      <div class="slabel">📅 42-Day Calendar — click any day to log tasks</div>
+      <div class="grid-wrap">
+        <div class="grid-header">
+          <div class="grid-title">FULL SPRINT CALENDAR</div>
+          <div class="grid-progress-text" id="gridProgressText">0 / 42 days complete</div>
+        </div>
+        <div class="day-grid" id="dayGrid"></div>
+      </div>
+
+      <!-- ── SUMMARY STATS ── -->
+      <div class="slabel">📊 Live Summary</div>
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-val" id="s-pushups" style="color:var(--accent)">0</div>
+          <div class="stat-lbl">Pushups Done</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-val" id="s-journal" style="color:var(--accent2)">0</div>
+          <div class="stat-lbl">Journal Entries</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-val" id="s-linkedin" style="color:var(--accent3)">0</div>
+          <div class="stat-lbl">LinkedIn Posts</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-val" id="s-streak" style="color:var(--accent4)">0</div>
+          <div class="stat-lbl">Current Streak</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-val" id="s-pct" style="color:var(--accent5)">0%</div>
+          <div class="stat-lbl">Plan Complete</div>
+        </div>
+      </div>
+
+      <!-- ── CHARTS ── -->
+      <div class="slabel">📈 Progress Charts</div>
+      <div class="charts-row">
+        <div class="chart-card">
+          <div class="chart-card-header">📅 Tasks Completed Per Day</div>
+          <div class="chart-body">
+            <canvas id="barChart" height="180"></canvas>
+          </div>
+        </div>
+        <div class="chart-card">
+          <div class="chart-card-header">🍩 Task Type Breakdown</div>
+          <div class="chart-body donut-wrap">
+            <canvas id="donutChart" height="220" width="220"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── HEATMAP ── -->
+      <div class="heatmap-wrap">
+        <div class="grid-header">
+          <div class="grid-title">🔥 Habit Completion Heatmap</div>
+          <div class="grid-progress-text">Darker = more tasks done that day</div>
+        </div>
+        <div class="heatmap-body" id="heatmapBody"></div>
+      </div>
+
+      <!-- ── STREAK BARS ── -->
+      <div class="streak-section">
+        <div class="grid-header">
+          <div class="grid-title">⚡ Daily Completion Score</div>
+          <div class="grid-progress-text" id="streakLabel">streak bars per day</div>
+        </div>
+        <div class="streak-body">
+          <div class="streak-bars" id="streakBars"></div>
+          <div class="streak-labels" id="streakLabels"></div>
+        </div>
+      </div>
+
+      <!-- ── FOOTER ── -->
+      <div class="footer">
+        <div class="footer-motto">BUILD THE BEAST.</div>
+        <div class="footer-sub">Feb 17 → Mar 31 · 42 days · thesis + ML + english + body</div>
+      </div>
+
+    </div><!-- /.container -->
+
+    <!-- ── TASK MODAL ── -->
+    <div class="task-modal" id="taskModal">
+      <div class="task-panel">
+
+        <div class="task-panel-header">
+          <div class="task-panel-title" id="modalTitle">Day 1</div>
+          <button class="close-btn" id="closeModalBtn">✕</button>
+        </div>
+
+        <div class="task-list" id="taskList"></div>
+
+        <div class="modal-footer">
+          <button class="clear-day-btn" id="clearDayBtn">
+            🗑 Clear All Tasks for This Day
+          </button>
+        </div>
+
+      </div>
+    </div>
+
+  </div><!-- /#mainApp -->
 
   <!-- Chart.js CDN -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
