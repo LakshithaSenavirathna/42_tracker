@@ -1,6 +1,9 @@
 /* ═══════════════════════════════════════════════
    42-DAY MASTER TRACKER — app.js
-   Storage: Google Sheets via Apps Script
+   - PIN lock (sync only after unlock)
+   - Task ticking per day
+   - Notes per day
+   - Google Sheets sync
    ═══════════════════════════════════════════════ */
 
 // ── PIN LOCK ─────────────────────────────────────
@@ -9,20 +12,21 @@ const SESSION_KEY = 'tracker42_unlocked';
 let pinBuffer = '';
 
 function setupLock() {
-  // Already unlocked this browser session — skip lock screen
+  // Already unlocked this session → go straight to app
   if (sessionStorage.getItem(SESSION_KEY) === 'yes') {
     unlock(false);
+    bootTracker(); // sync happens here, after unlock confirmed
     return;
   }
 
-  // Digit buttons
+  // Wire up numpad
   document.querySelectorAll('.num-btn[data-n]').forEach(btn => {
     btn.addEventListener('click', () => pressDigit(btn.dataset.n));
   });
   document.getElementById('clearPin').addEventListener('click', backspacePin);
   document.getElementById('enterPin').addEventListener('click', submitPin);
 
-  // Keyboard support
+  // Keyboard support (only active while lock screen is visible)
   document.addEventListener('keydown', e => {
     if (document.getElementById('lockScreen').classList.contains('hidden')) return;
     if (e.key >= '0' && e.key <= '9') pressDigit(e.key);
@@ -59,11 +63,11 @@ function submitPin() {
   if (pinBuffer === CORRECT_PIN) {
     sessionStorage.setItem(SESSION_KEY, 'yes');
     unlock(true);
+    bootTracker(); // ← sync starts HERE, only after correct PIN
   } else {
-    // Shake animation + red dots
     const box = document.querySelector('.lock-box');
     box.classList.remove('shake');
-    void box.offsetWidth; // restart animation
+    void box.offsetWidth;
     box.classList.add('shake');
     for (let i = 0; i < 4; i++) {
       document.getElementById('dot' + i).classList.add('error');
@@ -82,7 +86,6 @@ function unlock(animate) {
   const app = document.getElementById('mainApp');
   app.classList.remove('locked');
   app.classList.add('unlocked');
-  if (animate) bootTracker();
 }
 
 function lockApp() {
@@ -113,13 +116,15 @@ const TASKS = [
   { id: 'ts',       name: 'Time Series',            sub: 'R + Python + models',         color: '#00e5ff', emoji: '📈' },
 ];
 
-// ── STATE ────────────────────────────────────────
-let DATA         = {};   // { "day1": ["pushup", ...], ... }
+// ── STATE ─────────────────────────────────────────
+// DATA shape: { "day1": { tasks: [...], note: "..." }, ... }
+let DATA         = {};
 let openDayIdx   = null;
+let activeTab    = 'tasks';
 let barChartInst = null;
 let donutInst    = null;
 
-// ── SYNC STATUS UI ───────────────────────────────
+// ── SYNC STATUS UI ────────────────────────────────
 function setSyncStatus(state, msg) {
   const el = document.getElementById('syncStatus');
   if (!el) return;
@@ -128,36 +133,46 @@ function setSyncStatus(state, msg) {
   el.className   = 'sync-status sync-' + state;
 }
 
-// ── GOOGLE SHEETS — LOAD ALL ─────────────────────
+// ── GOOGLE SHEETS — LOAD ALL ──────────────────────
 async function loadFromSheets() {
   setSyncStatus('loading', 'Loading from Google Sheets…');
   try {
     const res  = await fetch(SHEET_URL);
     const json = await res.json();
     if (json.ok) {
-      DATA = json.data || {};
-      localStorage.setItem('tracker42', JSON.stringify(DATA)); // local backup
+      // Migrate: server may return old format {tasks:[]} or new {tasks:[], note:""}
+      const raw = json.data || {};
+      DATA = {};
+      Object.keys(raw).forEach(k => {
+        const v = raw[k];
+        if (Array.isArray(v)) {
+          DATA[k] = { tasks: v, note: '' };
+        } else {
+          DATA[k] = { tasks: v.tasks || [], note: v.note || '' };
+        }
+      });
+      saveLocal();
       setSyncStatus('ok', 'Synced with Google Sheets');
     } else {
       throw new Error(json.error || 'Unknown error');
     }
   } catch (err) {
     console.warn('Sheets load failed, using localStorage:', err);
-    DATA = loadFromLocal();
+    DATA = loadLocal();
     setSyncStatus('error', 'Offline — using local data');
   }
 }
 
 // ── GOOGLE SHEETS — SAVE ONE DAY ─────────────────
 async function saveDayToSheets(dayIdx) {
-  const key   = dayKey(dayIdx);
-  const tasks = DATA[key] || [];
+  const key  = dayKey(dayIdx);
+  const payload = { day: key, tasks: getDayTasks(dayIdx), note: getDayNote(dayIdx) };
   setSyncStatus('saving', 'Saving…');
   try {
     const res  = await fetch(SHEET_URL, {
       method:  'POST',
-      headers: { 'Content-Type': 'text/plain' }, // required for Apps Script CORS
-      body:    JSON.stringify({ day: key, tasks }),
+      headers: { 'Content-Type': 'text/plain' },
+      body:    JSON.stringify(payload),
     });
     const json = await res.json();
     if (json.ok) {
@@ -169,33 +184,54 @@ async function saveDayToSheets(dayIdx) {
     console.warn('Sheets save failed:', err);
     setSyncStatus('error', 'Save failed — kept locally');
   }
-  localStorage.setItem('tracker42', JSON.stringify(DATA)); // always mirror locally
+  saveLocal();
 }
 
-// ── LOCAL STORAGE (offline fallback) ─────────────
-function loadFromLocal() {
+// ── LOCAL STORAGE ─────────────────────────────────
+function saveLocal() {
+  try { localStorage.setItem('tracker42', JSON.stringify(DATA)); } catch (e) {}
+}
+
+function loadLocal() {
   try {
     const raw = localStorage.getItem('tracker42');
-    return raw ? JSON.parse(raw) : {};
+    if (!raw) return {};
+    const parsed = JSON.parse(raw);
+    // Migrate old flat format
+    const out = {};
+    Object.keys(parsed).forEach(k => {
+      const v = parsed[k];
+      if (Array.isArray(v)) out[k] = { tasks: v, note: '' };
+      else                   out[k] = { tasks: v.tasks || [], note: v.note || '' };
+    });
+    return out;
   } catch (e) { return {}; }
 }
 
-// ── HELPERS ──────────────────────────────────────
-function dayKey(i)      { return 'day' + (i + 1); }
-function getDayTasks(i) { return DATA[dayKey(i)] || []; }
+// ── HELPERS ───────────────────────────────────────
+function dayKey(i)       { return 'day' + (i + 1); }
+function ensureDay(i)    { if (!DATA[dayKey(i)]) DATA[dayKey(i)] = { tasks: [], note: '' }; }
+function getDayTasks(i)  { return DATA[dayKey(i)]?.tasks || []; }
+function getDayNote(i)   { return DATA[dayKey(i)]?.note  || ''; }
 
 function toggleTask(dayIdx, taskId) {
-  const key = dayKey(dayIdx);
-  if (!DATA[key]) DATA[key] = [];
-  const arr = DATA[key];
+  ensureDay(dayIdx);
+  const arr = DATA[dayKey(dayIdx)].tasks;
   const pos = arr.indexOf(taskId);
   if (pos >= 0) arr.splice(pos, 1);
   else arr.push(taskId);
-  saveDayToSheets(dayIdx); // async save
+  saveDayToSheets(dayIdx);
 }
 
-function clearDay(dayIdx) {
-  DATA[dayKey(dayIdx)] = [];
+function clearDayData(dayIdx) {
+  ensureDay(dayIdx);
+  DATA[dayKey(dayIdx)].tasks = [];
+  saveDayToSheets(dayIdx);
+}
+
+function saveNote(dayIdx, text) {
+  ensureDay(dayIdx);
+  DATA[dayKey(dayIdx)].note = text.trim();
   saveDayToSheets(dayIdx);
 }
 
@@ -218,7 +254,7 @@ function refreshAll() {
   buildStreakBars();
 }
 
-// ── LEGEND ───────────────────────────────────────
+// ── LEGEND ────────────────────────────────────────
 function buildLegend() {
   const el = document.getElementById('legend');
   el.innerHTML = '';
@@ -233,11 +269,10 @@ function buildLegend() {
   });
 }
 
-// ── 42-DAY GRID ──────────────────────────────────
+// ── 42-DAY GRID ───────────────────────────────────
 function buildGrid() {
   const grid = document.getElementById('dayGrid');
   grid.innerHTML = '';
-
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
@@ -246,6 +281,7 @@ function buildGrid() {
     d.setHours(0, 0, 0, 0);
 
     const done      = getDayTasks(i);
+    const hasNote   = getDayNote(i).length > 0;
     const pct       = done.length / TASKS.length;
     const isFull    = pct === 1;
     const isPartial = pct > 0 && pct < 1;
@@ -257,7 +293,14 @@ function buildGrid() {
       isPartial ? 'partial-day' : '',
       isToday   ? 'today'       : '',
     ].join(' ').trim();
-    cell.dataset.day = i;
+
+    // Yellow dot if note exists
+    if (hasNote) {
+      const noteDot = document.createElement('div');
+      noteDot.className = 'note-indicator';
+      noteDot.title = 'Has note';
+      cell.appendChild(noteDot);
+    }
 
     const num = document.createElement('div');
     num.className   = 'day-num';
@@ -297,21 +340,46 @@ function updateGridProgress() {
     `${complete} / ${TOTAL_DAYS} days complete`;
 }
 
-// ── MODAL ────────────────────────────────────────
+// ── MODAL ─────────────────────────────────────────
 function openModal(dayIdx) {
   openDayIdx = dayIdx;
   const d = getDate(dayIdx);
   document.getElementById('modalTitle').textContent =
     `Day ${dayIdx + 1} · ${fmtDate(d)}`;
+
+  // Default to tasks tab
+  switchTab('tasks');
   renderTaskList();
+  loadNoteIntoEditor(dayIdx);
+
   document.getElementById('taskModal').classList.add('open');
 }
 
 function closeModal() {
+  // Auto-save note when closing if there's unsaved content
+  const textarea = document.getElementById('dayNotes');
+  if (openDayIdx !== null && textarea) {
+    const current = textarea.value;
+    if (current !== getDayNote(openDayIdx)) {
+      saveNote(openDayIdx, current);
+      refreshAll();
+    }
+  }
   document.getElementById('taskModal').classList.remove('open');
   openDayIdx = null;
 }
 
+// ── TABS ──────────────────────────────────────────
+function switchTab(tab) {
+  activeTab = tab;
+  document.querySelectorAll('.modal-tab').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.tab === tab);
+  });
+  document.getElementById('paneTasks').classList.toggle('hidden', tab !== 'tasks');
+  document.getElementById('paneNotes').classList.toggle('hidden', tab !== 'notes');
+}
+
+// ── TASK LIST ─────────────────────────────────────
 function renderTaskList() {
   const list = document.getElementById('taskList');
   list.innerHTML = '';
@@ -340,17 +408,49 @@ function renderTaskList() {
   });
 }
 
-// ── CLEAR DAY ────────────────────────────────────
+// ── NOTES ─────────────────────────────────────────
+function loadNoteIntoEditor(dayIdx) {
+  const textarea = document.getElementById('dayNotes');
+  const text = getDayNote(dayIdx);
+  textarea.value = text;
+  updateCharCount(text);
+  // Reset save button state
+  const btn = document.getElementById('saveNotesBtn');
+  btn.textContent = '💾 Save Note';
+  btn.classList.remove('saved');
+}
+
+function updateCharCount(text) {
+  document.getElementById('notesChars').textContent =
+    text.length + ' char' + (text.length !== 1 ? 's' : '');
+}
+
+function handleSaveNote() {
+  if (openDayIdx === null) return;
+  const text = document.getElementById('dayNotes').value;
+  saveNote(openDayIdx, text);
+  refreshAll();
+  // Visual feedback
+  const btn = document.getElementById('saveNotesBtn');
+  btn.textContent = '✅ Saved!';
+  btn.classList.add('saved');
+  setTimeout(() => {
+    btn.textContent = '💾 Save Note';
+    btn.classList.remove('saved');
+  }, 2000);
+}
+
+// ── CLEAR DAY ─────────────────────────────────────
 function handleClearDay() {
   if (openDayIdx === null) return;
   const label = `Day ${openDayIdx + 1} (${fmtDate(getDate(openDayIdx))})`;
-  if (!window.confirm(`Clear all tasks for ${label}?`)) return;
-  clearDay(openDayIdx);
+  if (!window.confirm(`Clear all tasks for ${label}?\n(Notes will be kept)`)) return;
+  clearDayData(openDayIdx);
   renderTaskList();
   refreshAll();
 }
 
-// ── SUMMARY STATS ────────────────────────────────
+// ── SUMMARY STATS ─────────────────────────────────
 function buildStats() {
   let pushups = 0, journal = 0, linkedin = 0, totalTasks = 0;
   const totalPossible = TOTAL_DAYS * TASKS.length;
@@ -382,7 +482,7 @@ function buildStats() {
   document.getElementById('s-pct').textContent = pct + '%';
 }
 
-// ── BAR CHART ────────────────────────────────────
+// ── BAR CHART ─────────────────────────────────────
 function buildBarChart() {
   const labels = [], values = [], colors = [];
   for (let i = 0; i < TOTAL_DAYS; i++) {
@@ -410,7 +510,7 @@ function buildBarChart() {
   });
 }
 
-// ── DONUT CHART ──────────────────────────────────
+// ── DONUT CHART ───────────────────────────────────
 function buildDonut() {
   const counts = {};
   TASKS.forEach(t => (counts[t.id] = 0));
@@ -436,7 +536,7 @@ function buildDonut() {
   });
 }
 
-// ── HEATMAP ──────────────────────────────────────
+// ── HEATMAP ───────────────────────────────────────
 function buildHeatmap() {
   const body = document.getElementById('heatmapBody');
   body.innerHTML = '';
@@ -460,7 +560,7 @@ function buildHeatmap() {
   });
 }
 
-// ── STREAK BARS ──────────────────────────────────
+// ── STREAK BARS ───────────────────────────────────
 function buildStreakBars() {
   const barsEl = document.getElementById('streakBars');
   const lblsEl = document.getElementById('streakLabels');
@@ -491,25 +591,39 @@ function buildStreakBars() {
     `Best full-day streak: ${bestStreak} days`;
 }
 
-// ── EVENTS ───────────────────────────────────────
+// ── EVENTS ────────────────────────────────────────
 function attachEvents() {
   document.getElementById('closeModalBtn').addEventListener('click', closeModal);
   document.getElementById('taskModal').addEventListener('click', function (e) {
     if (e.target === this) closeModal();
   });
   document.getElementById('clearDayBtn').addEventListener('click', handleClearDay);
+  document.getElementById('saveNotesBtn').addEventListener('click', handleSaveNote);
+
+  // Tab switching
+  document.querySelectorAll('.modal-tab').forEach(btn => {
+    btn.addEventListener('click', () => switchTab(btn.dataset.tab));
+  });
+
+  // Live char count on textarea
+  document.getElementById('dayNotes').addEventListener('input', e => {
+    updateCharCount(e.target.value);
+  });
+
+  // Lock button
+  document.getElementById('lockBtn').addEventListener('click', lockApp);
 }
 
-// ── BOOT TRACKER (called after unlock) ───────────
+// ── BOOT TRACKER (runs only after unlock) ─────────
 async function bootTracker() {
   attachEvents();
   buildLegend();
 
-  // 1. Show local cache instantly so UI isn't blank
-  DATA = loadFromLocal();
+  // Show local cache first so UI isn't blank
+  DATA = loadLocal();
   refreshAll();
 
-  // 2. Fetch latest from Google Sheets and re-render
+  // Then fetch latest from Google Sheets
   await loadFromSheets();
   refreshAll();
 }
@@ -517,13 +631,9 @@ async function bootTracker() {
 // ── INIT — entry point ────────────────────────────
 function init() {
   setupLock();
-  // If session was already unlocked, bootTracker() is
-  // called inside setupLock → unlock(false). Otherwise
-  // it's called after correct PIN entry via unlock(true).
-  // Edge case: if unlocked=yes, we still need to boot.
-  if (sessionStorage.getItem(SESSION_KEY) === 'yes') {
-    bootTracker();
-  }
+  // Note: bootTracker() is called inside setupLock() only
+  // after the correct PIN is entered (or session is already valid).
+  // No Sheets network calls happen before unlock.
 }
 
 window.addEventListener('load', init);
