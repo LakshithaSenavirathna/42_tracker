@@ -245,18 +245,17 @@ function fmtDate(d) {
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 }
 
-/** Only today (dayIdx) and tomorrow (dayIdx+1) are editable */
+/** Today + next 2 days are editable (3-day window) */
 function isEditable(dayIdx) {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
-  const tomorrow = new Date(today);
-  tomorrow.setDate(tomorrow.getDate() + 1);
+
+  const day2 = new Date(today); day2.setDate(today.getDate() + 2); // today + 2
 
   const cellDate = getDate(dayIdx);
   cellDate.setHours(0, 0, 0, 0);
 
-  return cellDate.getTime() === today.getTime() ||
-         cellDate.getTime() === tomorrow.getTime();
+  return cellDate >= today && cellDate <= day2;
 }
 
 // ── TOAST NOTIFICATION ────────────────────────────
@@ -384,7 +383,7 @@ function openModal(dayIdx) {
     showToast(
       isPast
         ? `🔒 Day ${dayIdx + 1} is locked — past days can't be edited`
-        : `🔒 Day ${dayIdx + 1} isn't available yet — come back on ${fmtDate(cellDate)}`
+        : `🔒 Day ${dayIdx + 1} not available yet — opens on ${fmtDate(cellDate)}`
     );
     return;
   }
