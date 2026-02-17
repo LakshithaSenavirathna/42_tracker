@@ -584,6 +584,60 @@ canvas { width: 100% !important; display: block; }
 .footer-motto { font-family: 'Bebas Neue', sans-serif; font-size: 26px; letter-spacing: 2px; color: var(--accent); }
 .footer-sub { font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: var(--muted); letter-spacing: 2px; margin-top: 4px; }
 
+/* ── TOAST ── */
+#toast {
+  position: fixed;
+  bottom: 32px;
+  left: 50%;
+  transform: translateX(-50%) translateY(20px);
+  background: var(--card2);
+  border: 1px solid var(--border2);
+  color: var(--text);
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 12px;
+  letter-spacing: 0.5px;
+  padding: 12px 22px;
+  z-index: 200;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .25s, transform .25s;
+  white-space: nowrap;
+  max-width: 90vw;
+}
+#toast.show {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+/* ── DAY CELL STATES: locked past / locked future / editable ── */
+.day-cell.day-past {
+  opacity: 0.38;
+  cursor: not-allowed;
+}
+.day-cell.day-past:hover {
+  background: var(--surface);
+  border-color: var(--border);
+}
+.day-cell.day-future {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.day-cell.day-future:hover {
+  background: var(--surface);
+  border-color: var(--border);
+}
+/* Editable days (today + tomorrow) get a subtle glow ring */
+.day-cell.day-editable {
+  cursor: pointer;
+}
+.day-cell.day-editable:not(.full-day):not(.partial-day) {
+  border-color: rgba(77, 159, 255, 0.35);
+}
+.day-cell.day-editable .day-num {
+  color: var(--accent3);
+}
+.day-cell.full-day.day-editable .day-num { color: var(--accent); }
+
 /* ── RESPONSIVE ── */
 @media (max-width: 768px) {
   .stats-grid  { grid-template-columns: repeat(3, 1fr); }
