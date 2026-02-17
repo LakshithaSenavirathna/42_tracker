@@ -103,8 +103,8 @@ function lockApp() {
 const SHEET_URL = 'https://script.google.com/macros/s/AKfycby6Hk_tHEifuaYcA_-dcybjCisMBKi_0bg3rritM__02UGvkKtloIjk6cDrsR16J8F4nA/exec';
 
 // ── APP CONFIG ───────────────────────────────────
-const START_DATE = new Date(2026, 1, 17); // Feb 17 2026
-const TOTAL_DAYS = 42;
+const START_DATE = new Date(2025, 1, 18); // Feb 18 2025
+const TOTAL_DAYS = 42;                    // Feb 18 → Mar 31 2025 inclusive
 
 const TASKS = [
   { id: 'pushup',   name: '50 Pushups',            sub: 'Daily non-negotiable',        color: '#00ff88', emoji: '💪' },
@@ -245,6 +245,34 @@ function fmtDate(d) {
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 }
 
+/** Only today (dayIdx) and tomorrow (dayIdx+1) are editable */
+function isEditable(dayIdx) {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const tomorrow = new Date(today);
+  tomorrow.setDate(tomorrow.getDate() + 1);
+
+  const cellDate = getDate(dayIdx);
+  cellDate.setHours(0, 0, 0, 0);
+
+  return cellDate.getTime() === today.getTime() ||
+         cellDate.getTime() === tomorrow.getTime();
+}
+
+// ── TOAST NOTIFICATION ────────────────────────────
+function showToast(msg) {
+  let toast = document.getElementById('toast');
+  if (!toast) {
+    toast = document.createElement('div');
+    toast.id = 'toast';
+    document.body.appendChild(toast);
+  }
+  toast.textContent = msg;
+  toast.classList.add('show');
+  clearTimeout(toast._timer);
+  toast._timer = setTimeout(() => toast.classList.remove('show'), 3000);
+}
+
 function refreshAll() {
   buildGrid();
   buildStats();
@@ -286,12 +314,17 @@ function buildGrid() {
     const isFull    = pct === 1;
     const isPartial = pct > 0 && pct < 1;
     const isToday   = d.getTime() === today.getTime();
+    const editable  = isEditable(i);
+    const isFutureLocked = d > today && !editable;
 
     const cell = document.createElement('div');
     cell.className = ['day-cell',
-      isFull    ? 'full-day'    : '',
-      isPartial ? 'partial-day' : '',
-      isToday   ? 'today'       : '',
+      isFull          ? 'full-day'      : '',
+      isPartial       ? 'partial-day'   : '',
+      isToday         ? 'today'         : '',
+      editable        ? 'day-editable'  : '',
+      isFutureLocked  ? 'day-future'    : '',
+      !editable && d < today ? 'day-past' : '',
     ].join(' ').trim();
 
     // Yellow dot if note exists
@@ -342,16 +375,28 @@ function updateGridProgress() {
 
 // ── MODAL ─────────────────────────────────────────
 function openModal(dayIdx) {
+  // ── EDIT RESTRICTION: only today & tomorrow ──
+  if (!isEditable(dayIdx)) {
+    const cellDate = getDate(dayIdx);
+    cellDate.setHours(0, 0, 0, 0);
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    const isPast = cellDate < today;
+    showToast(
+      isPast
+        ? `🔒 Day ${dayIdx + 1} is locked — past days can't be edited`
+        : `🔒 Day ${dayIdx + 1} isn't available yet — come back on ${fmtDate(cellDate)}`
+    );
+    return;
+  }
+
   openDayIdx = dayIdx;
   const d = getDate(dayIdx);
   document.getElementById('modalTitle').textContent =
     `Day ${dayIdx + 1} · ${fmtDate(d)}`;
 
-  // Default to tasks tab
   switchTab('tasks');
   renderTaskList();
   loadNoteIntoEditor(dayIdx);
-
   document.getElementById('taskModal').classList.add('open');
 }
 
