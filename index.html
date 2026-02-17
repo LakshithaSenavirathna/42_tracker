@@ -10,16 +10,14 @@
 <body>
 
   <!-- ══════════════════════════════════════════
-       LOCK SCREEN — shown until password entered
+       LOCK SCREEN
        ══════════════════════════════════════════ -->
   <div id="lockScreen" class="lock-screen">
     <div class="lock-box">
-
       <div class="lock-icon">🔒</div>
       <div class="lock-title">42-DAY TRACKER</div>
       <div class="lock-sub">Enter your PIN to continue</div>
 
-      <!-- PIN dots display -->
       <div class="pin-dots" id="pinDots">
         <span class="pin-dot" id="dot0"></span>
         <span class="pin-dot" id="dot1"></span>
@@ -27,10 +25,8 @@
         <span class="pin-dot" id="dot3"></span>
       </div>
 
-      <!-- Error message -->
       <div class="pin-error" id="pinError"></div>
 
-      <!-- Number pad -->
       <div class="numpad">
         <button class="num-btn" data-n="1">1</button>
         <button class="num-btn" data-n="2">2</button>
@@ -45,15 +41,13 @@
         <button class="num-btn" data-n="0">0</button>
         <button class="num-btn num-enter" id="enterPin">↵</button>
       </div>
-
     </div>
   </div>
 
   <!-- ══════════════════════════════════════════
-       MAIN APP — hidden until unlocked
+       MAIN APP
        ══════════════════════════════════════════ -->
   <div id="mainApp" class="main-app locked">
-
     <div class="container">
 
       <!-- ── HEADER ── -->
@@ -62,20 +56,20 @@
         <h1>42 DAY<br>TRACKER</h1>
         <div class="header-meta">
           Feb 17 → Mar 31, 2026 &nbsp;·&nbsp;
-          <span>Tap a day → tick your tasks</span>
+          <span>Tap a day → tick tasks &amp; write notes</span>
         </div>
         <div class="header-bottom-row">
-          <div id="syncStatus" class="sync-status sync-idle">☁️ Connecting to Google Sheets…</div>
+          <div id="syncStatus" class="sync-status sync-idle">☁️ Waiting…</div>
           <button class="lock-btn" id="lockBtn" title="Lock tracker">🔒 Lock</button>
         </div>
       </div>
 
       <!-- ── LEGEND ── -->
-      <div class="slabel">🎯 Daily Tasks — tap dots inside each day cell</div>
+      <div class="slabel">🎯 Daily Tasks</div>
       <div class="legend" id="legend"></div>
 
-      <!-- ── 42-DAY CALENDAR GRID ── -->
-      <div class="slabel">📅 42-Day Calendar — click any day to log tasks</div>
+      <!-- ── CALENDAR GRID ── -->
+      <div class="slabel">📅 42-Day Calendar — click any day</div>
       <div class="grid-wrap">
         <div class="grid-header">
           <div class="grid-title">FULL SPRINT CALENDAR</div>
@@ -114,9 +108,7 @@
       <div class="charts-row">
         <div class="chart-card">
           <div class="chart-card-header">📅 Tasks Completed Per Day</div>
-          <div class="chart-body">
-            <canvas id="barChart" height="180"></canvas>
-          </div>
+          <div class="chart-body"><canvas id="barChart" height="180"></canvas></div>
         </div>
         <div class="chart-card">
           <div class="chart-card-header">🍩 Task Type Breakdown</div>
@@ -155,21 +147,45 @@
 
     </div><!-- /.container -->
 
-    <!-- ── TASK MODAL ── -->
+    <!-- ══════════════════════════════════════════
+         DAY MODAL — tasks + notes
+         ══════════════════════════════════════════ -->
     <div class="task-modal" id="taskModal">
       <div class="task-panel">
 
+        <!-- Header -->
         <div class="task-panel-header">
           <div class="task-panel-title" id="modalTitle">Day 1</div>
           <button class="close-btn" id="closeModalBtn">✕</button>
         </div>
 
-        <div class="task-list" id="taskList"></div>
+        <!-- Tab bar -->
+        <div class="modal-tabs">
+          <button class="modal-tab active" id="tabTasks" data-tab="tasks">✅ Tasks</button>
+          <button class="modal-tab"        id="tabNotes" data-tab="notes">📝 Notes</button>
+        </div>
 
-        <div class="modal-footer">
-          <button class="clear-day-btn" id="clearDayBtn">
-            🗑 Clear All Tasks for This Day
-          </button>
+        <!-- Tasks pane -->
+        <div class="modal-pane" id="paneTasks">
+          <div class="task-list" id="taskList"></div>
+          <div class="modal-footer">
+            <button class="clear-day-btn" id="clearDayBtn">🗑 Clear All Tasks for This Day</button>
+          </div>
+        </div>
+
+        <!-- Notes pane -->
+        <div class="modal-pane hidden" id="paneNotes">
+          <div class="notes-wrap">
+            <textarea
+              id="dayNotes"
+              class="notes-textarea"
+              placeholder="Write anything about today…&#10;&#10;What did you learn? What was hard? What are you proud of?"
+            ></textarea>
+            <div class="notes-footer">
+              <span class="notes-chars" id="notesChars">0 chars</span>
+              <button class="save-notes-btn" id="saveNotesBtn">💾 Save Note</button>
+            </div>
+          </div>
         </div>
 
       </div>
@@ -177,10 +193,7 @@
 
   </div><!-- /#mainApp -->
 
-  <!-- Chart.js CDN -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
-  <!-- App logic -->
   <script src="app.js"></script>
-
 </body>
 </html>
